@@ -106,7 +106,7 @@ public class CommandWhitelistVelocity {
         HashSet<String> bannedSubCommands = getSuggestions(player);
 
         for (String bannedSubCommand : bannedSubCommands) {
-            if (command.startsWith(bannedSubCommand)) {
+            if (CommandUtil.matchesBlockedSubcommand(command, bannedSubCommand)) {
                 event.setResult(CommandExecuteEvent.CommandResult.denied());
                 player.sendMessage(CWCommand.miniMessage.deserialize(configCache.prefix + configCache.subcommand_denied));
                 return;

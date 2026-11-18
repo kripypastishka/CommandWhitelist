@@ -16,10 +16,21 @@ public class AsyncTabCompleteBlockerListener implements Listener {
         if (!(event.getSender() instanceof Player player)) return;
         if (player.hasPermission(CWPermission.BYPASS.permission())) return;
         String buffer = event.getBuffer();
+        if (!buffer.startsWith("/")) return;
+
         int commandEnd = buffer.indexOf(' ');
-        if (commandEnd < 0 || buffer.charAt(0) != '/' || !CommandWhitelistBukkit.getCommands(player)
-                .contains(buffer.substring(1, commandEnd).toLowerCase())) {
-            CommandWhitelistBukkit.getConfigCache().debug("Actively prevented " + event.getSender().getName() + "'s tab completion (sus packet)");
+        if (commandEnd < 0) {
+            event.setCompletions(CommandUtil.filterRootCommandSuggestions(
+                    buffer,
+                    event.getCompletions(),
+                    CommandWhitelistBukkit.getCommands(player)
+            ));
+            return;
+        }
+
+        String commandLabel = buffer.substring(1, commandEnd).toLowerCase(java.util.Locale.ROOT);
+        if (!CommandWhitelistBukkit.getCommands(player).contains(commandLabel)) {
+            CommandWhitelistBukkit.getConfigCache().debug("Actively prevented " + event.getSender().getName() + "'s tab completion (disallowed command)");
             event.setCancelled(true);
             return;
         }

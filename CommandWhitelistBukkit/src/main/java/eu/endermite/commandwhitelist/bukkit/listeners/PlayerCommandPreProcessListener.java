@@ -16,14 +16,15 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 
 import java.util.HashSet;
+import java.util.Locale;
 
 public class PlayerCommandPreProcessListener implements Listener {
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void PlayerExecuteCommand(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
         if (player.hasPermission(CWPermission.BYPASS.permission())) return;
         String caseSensitiveLabel = CommandUtil.getCommandLabel(event.getMessage());
-        String label = caseSensitiveLabel.toLowerCase();
+        String label = caseSensitiveLabel.toLowerCase(Locale.ROOT);
         String messageWithoutSlash = event.getMessage().startsWith("/") ? event.getMessage().substring(1) : event.getMessage();
 
         BukkitAudiences audiences = CommandWhitelistBukkit.getAudiences();
@@ -66,7 +67,7 @@ public class PlayerCommandPreProcessListener implements Listener {
         HashSet<String> bannedSubCommands = CommandWhitelistBukkit.getSuggestions(player);
 
         for (String bannedSubCommand : bannedSubCommands) {
-            if (messageWithoutSlash.startsWith(bannedSubCommand)) {
+            if (CommandUtil.matchesBlockedSubcommand(messageWithoutSlash, bannedSubCommand)) {
                 event.setCancelled(true);
                 audiences.player(player).sendMessage(CWCommand.miniMessage.deserialize(config.prefix + config.subcommand_denied));
                 return;

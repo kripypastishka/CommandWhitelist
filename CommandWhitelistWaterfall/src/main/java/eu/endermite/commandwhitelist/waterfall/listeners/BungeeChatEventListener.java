@@ -15,6 +15,7 @@ import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
 
 import java.util.HashSet;
+import java.util.Locale;
 
 public class BungeeChatEventListener implements Listener {
 
@@ -26,7 +27,7 @@ public class BungeeChatEventListener implements Listener {
         ProxiedPlayer player = (ProxiedPlayer) event.getSender();
         if (player.hasPermission(CWPermission.BYPASS.permission())) return;
 
-        String command = event.getMessage().toLowerCase();
+        String command = event.getMessage().toLowerCase(Locale.ROOT);
         if (command.startsWith("/"))
             command = command.substring(1);
         ConfigCache configCache = CommandWhitelistWaterfall.getConfigCache();
@@ -68,7 +69,7 @@ public class BungeeChatEventListener implements Listener {
 
         HashSet<String> bannedSubCommands = CommandWhitelistWaterfall.getSuggestions(player);
         for (String bannedSubCommand : bannedSubCommands) {
-            if (command.startsWith(bannedSubCommand)) {
+            if (CommandUtil.matchesBlockedSubcommand(command, bannedSubCommand)) {
                 event.setCancelled(true);
                 audiences.player(player).sendMessage(CWCommand.miniMessage.deserialize(configCache.prefix + configCache.subcommand_denied));
                 return;
