@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.HashSet;
+import java.util.Locale;
 
 @Deprecated(forRemoval = true)
 public class PacketCommandPreProcessListener {
@@ -26,32 +27,72 @@ public class PacketCommandPreProcessListener {
         commandExecListener(protocolManager, plugin);
     }
 
+    private static boolean matchesBlockedSubcommand(String command, String blockedPath) {
+        String normalizedCommand = command.trim().toLowerCase(Locale.ROOT);
+        String normalizedBlocked = blockedPath.trim().toLowerCase(Locale.ROOT);
+        if (normalizedCommand.startsWith("/")) normalizedCommand = normalizedCommand.substring(1);
+        if (normalizedBlocked.startsWith("/")) normalizedBlocked = normalizedBlocked.substring(1);
+
+        String[] commandTokens = normalizedCommand.isEmpty() ? new String[0] : normalizedCommand.split("\\s+");
+        String[] blockedTokens = normalizedBlocked.isEmpty() ? new String[0] : normalizedBlocked.split("\\s+");
+        if (blockedTokens.length == 0 || commandTokens.length < blockedTokens.length) return false;
+
+        for (int i = 0; i < blockedTokens.length; i++) {
+            if (!commandTokens[i].equals(blockedTokens[i])) return false;
+        }
+        return true;
+    }
+
     public static void commandExecListener(ProtocolManager protocolManager, Plugin plugin) {
-        protocolManager.addPacketListener(new PacketAdapter(plugin, ListenerPriority.HIGHEST, PacketType.Play.Client.CHAT) {
+        protocolManager.addPacketListener(new PacketAdapter(
+                plugin,
+                ListenerPriority.HIGHEST,
+                PacketType.Play.Client.CHAT,
+                PacketType.Play.Client.CHAT_COMMAND,
+                PacketType.Play.Client.CHAT_COMMAND_SIGNED
+        ) {
             @Override
             public void onPacketReceiving(PacketEvent event) {
+                PacketType packetType = event.getPacketType();
                 PacketContainer packet = event.getPacket();
-                String string = packet.getStrings().read(0);
-                if (!string.startsWith("/")) return;
+                String input = packet.getStrings().read(0);
+                if (input == null || input.isBlank()) return;
+
+                // Legacy chat packets carry the leading slash; command packets carry the command itself.
+                if (packetType.equals(PacketType.Play.Client.CHAT)) {
+                    if (!input.startsWith("/")) return;
+                    input = input.substring(1);
+                } else if (input.startsWith("/")) {
+                    input = input.substring(1);
+                }
+
+                String command = input.trim();
+                if (command.isEmpty()) return;
+
                 Player player = event.getPlayer();
                 if (player.hasPermission(CWPermission.BYPASS.permission())) return;
-                ConfigCache config = CommandWhitelistBukkit.getConfigCache();
-                String caseSensitiveLabel = CommandUtil.getCommandLabel(string);
-                String label = caseSensitiveLabel.toLowerCase();
-                packet.getStrings().write(0, string.replaceFirst(caseSensitiveLabel, label));
 
+                ConfigCache config = CommandWhitelistBukkit.getConfigCache();
+                String label = CommandUtil.getCommandLabel(command).toLowerCase(Locale.ROOT);
                 HashSet<String> commands = CommandWhitelistBukkit.getCommands(player);
                 BukkitAudiences audiences = CommandWhitelistBukkit.getAudiences();
+
                 if (!commands.contains(label)) {
                     event.setCancelled(true);
-                    audiences.player(player).sendMessage(CWCommand.miniMessage.deserialize(config.prefix + CommandWhitelistBukkit.getCommandDeniedMessage(label)));
+                    audiences.player(player).sendMessage(
+                            CWCommand.miniMessage.deserialize(
+                                    config.prefix + CommandWhitelistBukkit.getCommandDeniedMessage(label)
+                            )
+                    );
                     return;
                 }
-                HashSet<String> bannedSubCommands = CommandWhitelistBukkit.getSuggestions(player);
-                for (String bannedSubCommand : bannedSubCommands) {
-                    if (string.toLowerCase().substring(1).startsWith(bannedSubCommand)) {
+
+                for (String bannedSubCommand : CommandWhitelistBukkit.getSuggestions(player)) {
+                    if (matchesBlockedSubcommand(command, bannedSubCommand)) {
                         event.setCancelled(true);
-                        CommandWhitelistBukkit.getAudiences().player(player).sendMessage(CWCommand.miniMessage.deserialize(config.prefix + config.subcommand_denied));
+                        audiences.player(player).sendMessage(
+                                CWCommand.miniMessage.deserialize(config.prefix + config.subcommand_denied)
+                        );
                         return;
                     }
                 }
