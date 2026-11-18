@@ -15,6 +15,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 public class BungeeMainCommand extends Command implements TabExecutor {
 
@@ -34,7 +35,7 @@ public class BungeeMainCommand extends Command implements TabExecutor {
         }
 
         try {
-            CWCommand.CommandType commandType = CWCommand.CommandType.valueOf(args[0].toUpperCase());
+            CWCommand.CommandType commandType = CWCommand.CommandType.valueOf(args[0].toUpperCase(Locale.ROOT));
             switch (commandType) {
                 case RELOAD:
                     if (!sender.hasPermission(CWPermission.RELOAD.permission())) {
@@ -50,7 +51,9 @@ public class BungeeMainCommand extends Command implements TabExecutor {
                     }
                     if (args.length == 3) {
                         if (CWCommand.addToWhitelist(configCache, args[2], args[1]))
-                            audiences.sender(sender).sendMessage(CWCommand.miniMessage.deserialize(configCache.prefix + configCache.added_to_whitelist));
+                            audiences.sender(sender).sendMessage(CWCommand.miniMessage.deserialize(
+                                    String.format(Locale.ROOT, configCache.prefix + configCache.added_to_whitelist, args[2], args[1])
+                            ));
                         else
                             audiences.sender(sender).sendMessage(CWCommand.miniMessage.deserialize(configCache.prefix + configCache.group_doesnt_exist));
                     } else
@@ -63,7 +66,9 @@ public class BungeeMainCommand extends Command implements TabExecutor {
                     }
                     if (args.length == 3) {
                         if (CWCommand.removeFromWhitelist(configCache, args[2], args[1]))
-                            audiences.sender(sender).sendMessage(CWCommand.miniMessage.deserialize(configCache.prefix + configCache.removed_from_whitelist));
+                            audiences.sender(sender).sendMessage(CWCommand.miniMessage.deserialize(
+                                    String.format(Locale.ROOT, configCache.prefix + configCache.removed_from_whitelist, args[2], args[1])
+                            ));
                         else
                             audiences.sender(sender).sendMessage(CWCommand.miniMessage.deserialize(configCache.prefix + configCache.group_doesnt_exist));
                     } else
